@@ -1,0 +1,20 @@
+plugins {
+    id 'java'
+}
+
+group 'org.springframework'
+version '5.0.16.BUILD-SNAPSHOT'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile project(':spring-context')
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+    testCompile group: 'org.junit.platform', name: 'junit-platform-launcher', version:'1.2.0'
+    testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version:'5.2.0'
+    testCompile group: 'org.junit.vintage', name: 'junit-vintage-engine', version:'5.2.0'
+}
