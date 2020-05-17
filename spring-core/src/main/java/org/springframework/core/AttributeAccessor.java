@@ -24,6 +24,13 @@ import org.springframework.lang.Nullable;
  *
  * @author Rob Harrop
  * @since 2.0
+ *
+ * 通过给beanDefinition元数据附加和访问的api，元数据大概指一些注解的信息
+ * beanDefinition本身没有提供对AttributeAccessor的实现，由AbstractBeanDefinition来实现。
+ *
+ * AbstractBeanDefinition继承了BeanMetadataAttributeAccessor,
+ * BeanMetadataAttributeAccessor继承了AttributeAccessorSupport,
+ * AttributeAccessorSupport实现了AttributeAccessor
  */
 public interface AttributeAccessor {
 

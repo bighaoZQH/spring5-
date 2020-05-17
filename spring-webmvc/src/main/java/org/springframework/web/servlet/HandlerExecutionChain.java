@@ -35,6 +35,8 @@ import org.springframework.util.ObjectUtils;
  * @author Juergen Hoeller
  * @since 20.06.2003
  * @see HandlerInterceptor
+ *
+ * HandlerExecutionChain只能通过HandlerMapping中的getHandler获取到
  */
 public class HandlerExecutionChain {
 

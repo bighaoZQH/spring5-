@@ -234,6 +234,7 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 
 	@Override
 	@Nullable
+	//为自动依赖注入装配Bean选择合适的构造方法，该方法是获取所有@Autowire构造方法的
 	public Constructor<?>[] determineCandidateConstructors(Class<?> beanClass, final String beanName)
 			throws BeanCreationException {
 
@@ -263,15 +264,19 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 			this.lookupMethodsChecked.add(beanName);
 		}
 
+		//首先从容器的缓存中查找是否有指定Bean的构造方法
 		// Quick check on the concurrent map first, with minimal locking.
 		Constructor<?>[] candidateConstructors = this.candidateConstructorsCache.get(beanClass);
 		if (candidateConstructors == null) {
 			// Fully synchronized resolution now...
+			//线程同步以确保容器中数据一致性
 			synchronized (this.candidateConstructorsCache) {
 				candidateConstructors = this.candidateConstructorsCache.get(beanClass);
+				// 双重判断，避免多线程并发问题
 				if (candidateConstructors == null) {
 					Constructor<?>[] rawCandidates;
 					try {
+						//通过JDK反射机制，获取指定类的中所有声明的构造方法
 						rawCandidates = beanClass.getDeclaredConstructors();
 					}
 					catch (Throwable ex) {
@@ -279,11 +284,16 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 								"Resolution of declared constructors on bean Class [" + beanClass.getName() +
 								"] from ClassLoader [" + beanClass.getClassLoader() + "] failed", ex);
 					}
+					//存放候选构造方法的集合
 					List<Constructor<?>> candidates = new ArrayList<>(rawCandidates.length);
+					//autowire注解中required属性指定的构造方法
 					Constructor<?> requiredConstructor = null;
+					//默认的构造方法
 					Constructor<?> defaultConstructor = null;
+					// 对于Kotlin类，这个返回与Kotlin主构造函数对应的Java构造函数, 非Kotlin类都返回null，因此我们可以忽略
 					Constructor<?> primaryConstructor = BeanUtils.findPrimaryConstructor(beanClass);
 					int nonSyntheticConstructors = 0;
+					//遍历所有的构造方法，检查是否添加了autowire注解，以及是否指定了required属性
 					for (Constructor<?> candidate : rawCandidates) {
 						if (!candidate.isSynthetic()) {
 							nonSyntheticConstructors++;
@@ -291,8 +301,11 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 						else if (primaryConstructor != null) {
 							continue;
 						}
+						// 获取该构造方法上的@Antowire注解信息
 						AnnotationAttributes ann = findAutowiredAnnotation(candidate);
+						// 没有@Antowire的注解
 						if (ann == null) {
+							// 用于判断是否是cglib的代理类
 							Class<?> userClass = ClassUtils.getUserClass(beanClass);
 							if (userClass != beanClass) {
 								try {
@@ -305,33 +318,45 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 								}
 							}
 						}
+						// 如果有@Antowire的注解
 						if (ann != null) {
+							//如果antowire注解中指定了required属性
 							if (requiredConstructor != null) {
 								throw new BeanCreationException(beanName,
 										"Invalid autowire-marked constructor: " + candidate +
 										". Found constructor with 'required' Autowired annotation already: " +
 										requiredConstructor);
 							}
+							//获取autowire注解中required属性值
 							boolean required = determineRequiredStatus(ann);
+							//如果获取到autowire注解中required的属性值
 							if (required) {
+								//如果候选构造方法集合不为空直接抛异常
 								if (!candidates.isEmpty()) {
 									throw new BeanCreationException(beanName,
 											"Invalid autowire-marked constructors: " + candidates +
 											". Found constructor with 'required' Autowired annotation: " +
 											candidate);
 								}
+								// required为true 就标记当前构造方法为 指定的构造方法
+								// 用于判断是否有多个required为true的
 								requiredConstructor = candidate;
 							}
+							// 将当前的构造方法添加到候选构造方法集合中
 							candidates.add(candidate);
 						}
+						// 如果解的参数列表为空就是无参构造，Spring默认使用无参构造方法
 						else if (candidate.getParameterCount() == 0) {
 							defaultConstructor = candidate;
 						}
 					}
+					//如果候选构造方法集合不为空
 					if (!candidates.isEmpty()) {
 						// Add default constructor to list of optional constructors, as fallback.
+						//如果所有的构造方法都没有配置required属性，且有默认构造方法
 						if (requiredConstructor == null) {
 							if (defaultConstructor != null) {
+								//将默认构造方法添加到候选构造方法列表
 								candidates.add(defaultConstructor);
 							}
 							else if (candidates.size() == 1 && logger.isWarnEnabled()) {
@@ -341,8 +366,10 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 										"default constructor to fall back to: " + candidates.get(0));
 							}
 						}
+						//将候选构造方法集合转换为数组
 						candidateConstructors = candidates.toArray(new Constructor<?>[0]);
 					}
+					// 如果该bean的构造方法只有一个，且参数大于0，将其缓存起来，最后返回
 					else if (rawCandidates.length == 1 && rawCandidates[0].getParameterCount() > 0) {
 						candidateConstructors = new Constructor<?>[] {rawCandidates[0]};
 					}
@@ -354,21 +381,27 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 						candidateConstructors = new Constructor<?>[] {primaryConstructor};
 					}
 					else {
+						//如果候选构造方法集合为空，则创建一个空的数组
 						candidateConstructors = new Constructor<?>[0];
 					}
+					//将类的候选构造方法集合存放到容器的缓存中
 					this.candidateConstructorsCache.put(beanClass, candidateConstructors);
 				}
 			}
 		}
+		//返回指定类的候选构造方法数组，如果没有返回null
 		return (candidateConstructors.length > 0 ? candidateConstructors : null);
 	}
 
+	//处理类中的属性
 	@Override
 	public PropertyValues postProcessPropertyValues(
 			PropertyValues pvs, PropertyDescriptor[] pds, Object bean, String beanName) throws BeanCreationException {
 
-		InjectionMetadata metadata = findAutowiringMetadata(beanName, bean.getClass(), pvs);
+		//获取指定类中autowire相关注解的元信息
+ 		InjectionMetadata metadata = findAutowiringMetadata(beanName, bean.getClass(), pvs);
 		try {
+			//对Bean的属性进行自动注入
 			metadata.inject(bean, beanName, pvs);
 		}
 		catch (BeanCreationException ex) {
@@ -566,48 +599,68 @@ public class AutowiredAnnotationBeanPostProcessor extends InstantiationAwareBean
 			this.required = required;
 		}
 
+		//对字段进行注入
 		@Override
 		protected void inject(Object bean, @Nullable String beanName, @Nullable PropertyValues pvs) throws Throwable {
+			//获取注入元素对象
 			Field field = (Field) this.member;
 			Object value;
+			//如果当前对象在容器中被缓存
 			if (this.cached) {
+				//根据Bean名称解析缓存中的字段值
 				value = resolvedCachedArgument(beanName, this.cachedFieldValue);
 			}
+			//如果当前对象没有被容器缓存
 			else {
+				//创建一个字段依赖描述符
 				DependencyDescriptor desc = new DependencyDescriptor(field, this.required);
 				desc.setContainingClass(bean.getClass());
 				Set<String> autowiredBeanNames = new LinkedHashSet<>(1);
 				Assert.state(beanFactory != null, "No BeanFactory available");
+				//获取容器中的类型转换器
 				TypeConverter typeConverter = beanFactory.getTypeConverter();
 				try {
+					//根据容器中Bean定义，解析指定的依赖关系，获取依赖对象
 					value = beanFactory.resolveDependency(desc, beanName, autowiredBeanNames, typeConverter);
 				}
 				catch (BeansException ex) {
 					throw new UnsatisfiedDependencyException(null, beanName, new InjectionPoint(field), ex);
 				}
+				//线程同步，确保容器中数据一致性
 				synchronized (this) {
+					//如果当前对象没有被容器缓存
 					if (!this.cached) {
+						//获取到了当前对象的依赖对象，并且required属性为true
 						if (value != null || this.required) {
 							this.cachedFieldValue = desc;
+							//为指定Bean注册依赖Bean
 							registerDependentBeans(beanName, autowiredBeanNames);
 							if (autowiredBeanNames.size() == 1) {
 								String autowiredBeanName = autowiredBeanNames.iterator().next();
+								//如果容器中有指定名称的Bean对象
 								if (beanFactory.containsBean(autowiredBeanName) &&
 										beanFactory.isTypeMatch(autowiredBeanName, field.getType())) {
+									//依赖对象类型和字段类型匹配，默认按类型注入
 									this.cachedFieldValue = new ShortcutDependencyDescriptor(
 											desc, autowiredBeanName, field.getType());
 								}
 							}
 						}
+						//如果获取的依赖关系为null，且获取required属性为false
 						else {
+							//将字段值的缓存设置为null
 							this.cachedFieldValue = null;
 						}
+						//容器已经对当前字段的值缓存
 						this.cached = true;
 					}
 				}
 			}
+			//如果字段依赖值不为null
 			if (value != null) {
+				//显式使用JDK的反射机制，设置自动的访问控制权限为允许访问
 				ReflectionUtils.makeAccessible(field);
+				//为Bean对象的字段设置值
 				field.set(bean, value);
 			}
 		}

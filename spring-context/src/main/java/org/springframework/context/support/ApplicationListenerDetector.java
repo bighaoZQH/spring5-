@@ -41,6 +41,9 @@ import org.springframework.util.ObjectUtils;
  *
  * @author Juergen Hoeller
  * @since 4.3.4
+ *
+ *
+ * 检查是否实现了ApplicationListener 如果实现了就加入当前的applicationContext的applicationListeners列表
  */
 class ApplicationListenerDetector implements DestructionAwareBeanPostProcessor, MergedBeanDefinitionPostProcessor {
 

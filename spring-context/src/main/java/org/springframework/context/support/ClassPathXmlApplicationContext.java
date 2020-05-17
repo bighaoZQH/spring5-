@@ -195,8 +195,10 @@ public class ClassPathXmlApplicationContext extends AbstractXmlApplicationContex
 		super(parent);
 		Assert.notNull(paths, "Path array must not be null");
 		Assert.notNull(clazz, "Class argument must not be null");
+		// 解析Bean定义资源文件的路径，处理多个资源文件字符串数组
 		this.configResources = new Resource[paths.length];
 		for (int i = 0; i < paths.length; i++) {
+			// resolvePath为同一个类中将字符串解析为路径的方法
 			this.configResources[i] = new ClassPathResource(paths[i], clazz);
 		}
 		refresh();

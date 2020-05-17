@@ -32,6 +32,8 @@ public interface ImportAware extends Aware {
 
 	/**
 	 * Set the annotation metadata of the importing @{@code Configuration} class.
+	 *
+	 * 设置导入@Configuration类的注释元数据
 	 */
 	void setImportMetadata(AnnotationMetadata importMetadata);
 

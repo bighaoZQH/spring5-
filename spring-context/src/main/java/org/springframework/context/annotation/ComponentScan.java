@@ -122,6 +122,8 @@ public @interface ComponentScan {
 	/**
 	 * Indicates whether automatic detection of classes annotated with {@code @Component}
 	 * {@code @Repository}, {@code @Service}, or {@code @Controller} should be enabled.
+	 *
+	 * 指示是否自动检测用e@Component注释的类
 	 */
 	boolean useDefaultFilters() default true;
 

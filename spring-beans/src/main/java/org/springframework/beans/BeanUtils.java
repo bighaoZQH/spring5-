@@ -119,6 +119,7 @@ public abstract class BeanUtils {
 			throw new BeanInstantiationException(clazz, "Specified class is an interface");
 		}
 		try {
+			// 得到构造方法
 			Constructor<T> ctor = (KotlinDetector.isKotlinType(clazz) ?
 					KotlinDelegate.getPrimaryConstructor(clazz) : clazz.getDeclaredConstructor());
 			return instantiateClass(ctor);
@@ -166,6 +167,7 @@ public abstract class BeanUtils {
 		Assert.notNull(ctor, "Constructor must not be null");
 		try {
 			ReflectionUtils.makeAccessible(ctor);
+			// 通过构造方法newInstance(args)
 			return (KotlinDetector.isKotlinType(ctor.getDeclaringClass()) ?
 					KotlinDelegate.instantiateClass(ctor, args) : ctor.newInstance(args));
 		}
@@ -191,6 +193,9 @@ public abstract class BeanUtils {
 	 * @param clazz the class to check
 	 * @since 5.0
 	 * @see <a href="https://kotlinlang.org/docs/reference/classes.html#constructors">Kotlin docs</a>
+	 *
+	 * 返回所提供类的主构造函数。对于Kotlin类，这个返回与Kotlin主构造函数对应的Java构造函数
+	 * 否则对于非Kotlin类，都返回null
 	 */
 	@SuppressWarnings("unchecked")
 	@Nullable

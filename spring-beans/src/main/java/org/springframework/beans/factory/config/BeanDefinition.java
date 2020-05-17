@@ -37,13 +37,18 @@ import org.springframework.lang.Nullable;
  * @see org.springframework.beans.factory.support.RootBeanDefinition
  * @see org.springframework.beans.factory.support.ChildBeanDefinition
  */
+
+/**
+ * spring当中用来描述bean的一个接口
+ * 类似java的Class对象来描述class文件
+ */
 public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 
 	/**
 	 * Scope identifier for the standard singleton scope: "singleton".
 	 * <p>Note that extended bean factories might support further scopes.
 	 * @see #setScope
-	 *
+	 * 标准单例作用域的作用域标识符:"singleton"
 	 */
 	String SCOPE_SINGLETON = ConfigurableBeanFactory.SCOPE_SINGLETON;
 
@@ -58,6 +63,8 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 	/**
 	 * Role hint indicating that a {@code BeanDefinition} is a major part
 	 * of the application. Typically corresponds to a user-defined bean.
+	 *
+	 * 通常对应于用户定义的bean
 	 */
 	int ROLE_APPLICATION = 0;
 
@@ -69,6 +76,8 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 	 * of when looking more closely at a particular
 	 * {@link org.springframework.beans.factory.parsing.ComponentDefinition},
 	 * but not when looking at the overall configuration of an application.
+	 *
+	 * ROLE_SUPPORT = 1 实际上就是说，我这个Bean是用户的，是从配置文件中过来的
 	 */
 	int ROLE_SUPPORT = 1;
 
@@ -77,6 +86,8 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 	 * entirely background role and has no relevance to the end-user. This hint is
 	 * used when registering beans that are completely part of the internal workings
 	 * of a {@link org.springframework.beans.factory.parsing.ComponentDefinition}.
+	 *
+	 * 就是我这Bean是Spring自己的，和用户没关系
 	 */
 	int ROLE_INFRASTRUCTURE = 2;
 
@@ -90,6 +101,8 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 
 	/**
 	 * Return the name of the parent definition of this bean definition, if any.
+	 *
+	 * 得到bean的父类的名字
 	 */
 	@Nullable
 	String getParentName();
@@ -129,6 +142,8 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 	/**
 	 * Return the name of the current target scope for this bean,
 	 * or {@code null} if not known yet.
+	 *
+	 * 获取bean的作用域
 	 */
 	@Nullable
 	String getScope();
@@ -137,6 +152,8 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 	 * Set whether this bean should be lazily initialized.
 	 * <p>If {@code false}, the bean will get instantiated on startup by bean
 	 * factories that perform eager initialization of singletons.
+	 *
+	 * 设置是否懒加载
 	 */
 	void setLazyInit(boolean lazyInit);
 
@@ -149,6 +166,8 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 	/**
 	 * Set the names of the beans that this bean depends on being initialized.
 	 * The bean factory will guarantee that these beans get initialized first.
+	 *
+	 * 设置依赖的bean
 	 */
 	void setDependsOn(@Nullable String... dependsOn);
 
@@ -164,6 +183,8 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 	 * It does not affect explicit references by name, which will get resolved even
 	 * if the specified bean is not marked as an autowire candidate. As a consequence,
 	 * autowiring by name will nevertheless inject a bean if the name matches.
+	 *
+	 * 设置是否是自动装配
 	 */
 	void setAutowireCandidate(boolean autowireCandidate);
 
@@ -176,6 +197,8 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 	 * Set whether this bean is a primary autowire candidate.
 	 * <p>If this value is {@code true} for exactly one bean among multiple
 	 * matching candidates, it will serve as a tie-breaker.
+	 *
+	 * 这是是否是主要的自动注入候选bean
 	 */
 	void setPrimary(boolean primary);
 
@@ -217,6 +240,8 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 	 * Return the constructor argument values for this bean.
 	 * <p>The returned instance can be modified during bean factory post-processing.
 	 * @return the ConstructorArgumentValues object (never {@code null})
+	 *
+	 * bean的构造函数参数值 xml中配置<constructor-arg></constructor-arg>
 	 */
 	ConstructorArgumentValues getConstructorArgumentValues();
 
@@ -232,6 +257,8 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 	 * Return the property values to be applied to a new instance of the bean.
 	 * <p>The returned instance can be modified during bean factory post-processing.
 	 * @return the MutablePropertyValues object (never {@code null})
+	 *
+	 * set方法的参数值 xml中配置<property></property> 注解@Value
 	 */
 	MutablePropertyValues getPropertyValues();
 
@@ -263,6 +290,7 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 
 	/**
 	 * Return whether this bean is "abstract", that is, not meant to be instantiated.
+	 * 判断bean表示的类是否是是抽象的
 	 */
 	boolean isAbstract();
 

@@ -75,7 +75,12 @@ class ConfigurationClassEnhancer {
 
 	// The callbacks to use. Note that these callbacks must be stateless.
 	private static final Callback[] CALLBACKS = new Callback[] {
+			// 增强方法，主要控制bean的作用域
+			// 不每一次都去调用new
 			new BeanMethodInterceptor(),
+			// 如果配置类已经实现了BeanFactoryAware接口要注入beanFactory，
+			// 那么就直接通过BeanFactoryAwareMethodInterceptor拦截器来给其注入beanFactory
+			// 如果没有，就退出
 			new BeanFactoryAwareMethodInterceptor(),
 			NoOp.INSTANCE
 	};
@@ -96,6 +101,8 @@ class ConfigurationClassEnhancer {
 	 * @return the enhanced subclass
 	 */
 	public Class<?> enhance(Class<?> configClass, @Nullable ClassLoader classLoader) {
+		// 判断是否被代理过, 如何判断?
+		// EnhancedConfiguration接口是Spring内部判断一个配置类是否被cglib代理过，代理过的会实现这个接口
 		if (EnhancedConfiguration.class.isAssignableFrom(configClass)) {
 			if (logger.isDebugEnabled()) {
 				logger.debug(String.format("Ignoring request to enhance %s as it has " +
@@ -107,6 +114,7 @@ class ConfigurationClassEnhancer {
 			}
 			return configClass;
 		}
+		// 没有被代理cglib代理
 		Class<?> enhancedClass = createClass(newEnhancer(configClass, classLoader));
 		if (logger.isDebugEnabled()) {
 			logger.debug(String.format("Successfully enhanced %s; enhanced class name is: %s",
@@ -120,11 +128,22 @@ class ConfigurationClassEnhancer {
 	 */
 	private Enhancer newEnhancer(Class<?> configSuperClass, @Nullable ClassLoader classLoader) {
 		Enhancer enhancer = new Enhancer();
+		// 增强父类，地球人都知道cglib是基于继承来的
 		enhancer.setSuperclass(configSuperClass);
+		// 增强接口，为什么要增强接口?
+		// 便于判断，表示一个类已经被Spring进行了cglib代理
 		enhancer.setInterfaces(new Class<?>[] {EnhancedConfiguration.class});
+		// 不继承Factory接口
 		enhancer.setUseFactory(false);
 		enhancer.setNamingPolicy(SpringNamingPolicy.INSTANCE);
+		// BeanFactoryAwareGeneratorStrategy是一个生成策略
+		// 主要为生成的CGLIB类中添加成员变量$$beanFactory
+		// 同时基于接口EnhancedConfiguration的父接口BeanFactoryAware中的setBeanFactory方法，
+		// 设置此变量的值为当前Context中的beanFactory,这样一来我们这个cglib代理的对象就有了beanFactory
+		// 有了factory就能获得对象，而不用去通过方法获得对象了，因为通过方法获得对象不能控制其过程
+		// 该BeanFactory的作用是在this调用时拦截该调用，并直接在beanFactory中获得目标bean
 		enhancer.setStrategy(new BeanFactoryAwareGeneratorStrategy(classLoader));
+		// 过滤方法，不能每次都去new
 		enhancer.setCallbackFilter(CALLBACK_FILTER);
 		enhancer.setCallbackTypes(CALLBACK_FILTER.getCallbackTypes());
 		return enhancer;
@@ -153,6 +172,13 @@ class ConfigurationClassEnhancer {
 	 * <p>Note that this interface is intended for framework-internal use only, however
 	 * must remain public in order to allow access to subclasses generated from other
 	 * packages (i.e. user code).
+	 *
+	 * Spring内部判断一个配置类是否被cglib代理过，代理过的会实现这个接口，
+	 * 这个接口仅仅是Spring内部提供的，但也需要提供对外第三方的公共访问权限，
+	 * 以让第三方可以来进行判断一个配置类是否被cglib代理过，
+	 *
+	 * 同时基于该接口的父接口BeanFactoryAware中的setBeanFactory方法，
+	 * 设置此变量的值为当前Context中的beanFactory,这样一来我们这个cglib代理的对象就有了beanFactory
 	 */
 	public interface EnhancedConfiguration extends BeanFactoryAware {
 	}
@@ -272,12 +298,15 @@ class ConfigurationClassEnhancer {
 		@Override
 		@Nullable
 		public Object intercept(Object obj, Method method, Object[] args, MethodProxy proxy) throws Throwable {
+			// 找到代理类里的属性 $$beanFactory
 			Field field = ReflectionUtils.findField(obj.getClass(), BEAN_FACTORY_FIELD);
 			Assert.state(field != null, "Unable to find generated BeanFactory field");
 			field.set(obj, args[0]);
 
 			// Does the actual (non-CGLIB) superclass implement BeanFactoryAware?
 			// If so, call its setBeanFactory() method. If not, just exit.
+			// 实际（非CGLIB）超类是否实现BeanFactoryAware？
+			// 如果是，请调用其setBeanFactory（）方法。如果没有，就退出
 			if (BeanFactoryAware.class.isAssignableFrom(ClassUtils.getUserClass(obj.getClass().getSuperclass()))) {
 				return proxy.invokeSuper(obj, args);
 			}
@@ -303,6 +332,8 @@ class ConfigurationClassEnhancer {
 	 * handling of bean semantics such as scoping and AOP proxying.
 	 * @see Bean
 	 * @see ConfigurationClassEnhancer
+	 *
+	 * 用于拦截@Bean方法的调用，并直接从BeanFactory中获取目标bean，而不是通过执行方法。
 	 */
 	private static class BeanMethodInterceptor implements MethodInterceptor, ConditionalCallback {
 
@@ -317,7 +348,10 @@ class ConfigurationClassEnhancer {
 		public Object intercept(Object enhancedConfigInstance, Method beanMethod, Object[] beanMethodArgs,
 					MethodProxy cglibMethodProxy) throws Throwable {
 
+			// enhancedConfigInstance 代理对象
+			// 通过enhancedConfigInstance中cglib生成的成员变量$$beanFactory获得beanFactory。
 			ConfigurableBeanFactory beanFactory = getBeanFactory(enhancedConfigInstance);
+			// 获取beanName 如果没有加beanName就通过方法名得到beanName
 			String beanName = BeanAnnotationHelper.determineBeanNameFor(beanMethod);
 
 			// Determine whether this bean is a scoped-proxy
@@ -336,6 +370,12 @@ class ConfigurationClassEnhancer {
 			// proxy that intercepts calls to getObject() and returns any cached bean instance.
 			// This ensures that the semantics of calling a FactoryBean from within @Bean methods
 			// is the same as that of referring to a FactoryBean within XML. See SPR-6602.
+			/**
+			 * 为了处理bean间方法引用的情况，必须显式地检查已缓存实例的容器。
+			 * 首先，检查请求的bean是否是FactoryBean。
+			 * 如果是，则创建一个子类拦截对getObject（）的调用并返回任何缓存bean实例的代理。
+			 * 这确保了从@Bean方法中调用FactoryBean的语义，与在XML中引用FactoryBean相同
+			 */
 			if (factoryContainsBean(beanFactory, BeanFactory.FACTORY_BEAN_PREFIX + beanName) &&
 					factoryContainsBean(beanFactory, beanName)) {
 				Object factoryBean = beanFactory.getBean(BeanFactory.FACTORY_BEAN_PREFIX + beanName);
@@ -348,6 +388,10 @@ class ConfigurationClassEnhancer {
 				}
 			}
 
+
+			// 一个非常牛逼的判断
+			// 判断到底是new 还是get
+			// 判断执行的方法和调用方法是不是同一个方法
 			if (isCurrentlyInvokedFactoryMethod(beanMethod)) {
 				// The factory is calling the bean method in order to instantiate and register the bean
 				// (i.e. via a getBean() call) -> invoke the super implementation of the method to actually
@@ -392,6 +436,8 @@ class ConfigurationClassEnhancer {
 						}
 					}
 				}
+				// beanFactory.getBean
+				// 这个方法spring就写的非常牛逼，在bean实例化的章节会重点讲
 				Object beanInstance = (useArgs ? beanFactory.getBean(beanName, beanMethodArgs) :
 						beanFactory.getBean(beanName));
 				if (!ClassUtils.isAssignableValue(beanMethod.getReturnType(), beanInstance)) {
@@ -473,6 +519,8 @@ class ConfigurationClassEnhancer {
 		 * factory method. Compares method name and parameter types only in order to work
 		 * around a potential problem with covariant return types (currently only known
 		 * to happen on Groovy classes).
+		 *
+		 * 判断执行的方法和调用方法是不是同一个方法
 		 */
 		private boolean isCurrentlyInvokedFactoryMethod(Method method) {
 			Method currentlyInvoked = SimpleInstantiationStrategy.getCurrentlyInvokedFactoryMethod();
