@@ -12,9 +12,20 @@ repositories {
 }
 
 dependencies {
+    compile fileTree(dir:'lib',includes: ['*jar'])
     compile project(':spring-context')
+    compile project(':spring-webmvc')
     testCompile group: 'junit', name: 'junit', version: '4.12'
-    testCompile group: 'org.junit.platform', name: 'junit-platform-launcher', version:'1.2.0'
-    testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version:'5.2.0'
-    testCompile group: 'org.junit.vintage', name: 'junit-vintage-engine', version:'5.2.0'
+    compile group: 'org.aspectj', name: 'aspectjweaver', version: '1.9.5'
+    compile group: 'org.mybatis', name: 'mybatis', version: '3.4.6'
+    compile group: 'org.mybatis', name: 'mybatis-spring', version: '1.3.2'
+    compile group: 'mysql', name: 'mysql-connector-java', version: '5.1.46'
+    /*provided group: 'javax.servlet', name: 'javax.servlet-api', version: '4.0.1'*/
+    /* 引入了tomcat后，自带了servlet，所以会和上面的冲突 */
+    compile group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '8.5.33'
+    /* 解决java.lang.ClassNotFoundException: org.apache.jasper.servlet.JspServlet异常 */
+    compile group: 'org.apache.tomcat.embed', name: 'tomcat-embed-jasper', version: '8.5.33'
+    compile group: 'com.alibaba', name: 'fastjson', version: '1.2.62'
+
+
 }
